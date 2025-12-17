@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+ import { Repository } from "typeorm";
 import { User } from "../entities/User.js";
 import { AppDataSource } from "../database/data-source.js";
 
