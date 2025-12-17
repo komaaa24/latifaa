@@ -4,10 +4,7 @@ dotenv.config();
 import express from "express";
 import bodyParser from "body-parser";
 import { Bot, InlineKeyboard } from "grammy";
-// import { AppDataSource } from "./data-source.js";
-// import { Anecdote } from "./entities/Anecdote.js";
-// import { Payment } from "./entities/Payment.js";
-// import { generateClickLink } from "./click.js";
+import { generateClickLink } from "./click.js";
 
 const PORT = Number(process.env.PORT || 3000);
 const BOT_TOKEN = process.env.BOT_TOKEN!;
@@ -129,20 +126,28 @@ bot.on("callback_query:data", async (ctx) => {
             const { link, tx } = generateClickLink(amount, { additional_param4: "basic" });
 
             // save pending payment
-            const p = paymentRepo.create({ txId: tx, userId: userId, amount, status: "pending" });
-            await paymentRepo.save(p);
+            const p: Payment = {
+                id: paymentIdCounter++,
+                txId: tx,
+                userId: userId,
+                amount,
+                status: "pending"
+            };
+            payments.push(p);
 
-            const kb = new InlineKeyboard().text("To‘lov qilish (Click) 💳", `pay_${p.id}`).url(link);
+            const kb = new InlineKeyboard()
+                .text("To'lov qilish (Click) 💳", `pay_${p.id}`)
+                .url("To'lov", link);
             // we can also send separate message
-            await ctx.editMessageText(`Siz ${session.list.length} anekdotni ko‘rdingiz. To‘liq yig‘ilgan to‘plam uchun bir martalik to‘lov: ${amount} so‘m. To‘lovni Click orqali amalga oshiring:`, { reply_markup: kb });
+            await ctx.editMessageText(`Siz ${session.list.length} anekdotni ko'rdingiz. To'liq yig'ilgan to'plam uchun bir martalik to'lov: ${amount} so'm. To'lovni Click orqali amalga oshiring:`, { reply_markup: kb });
             await ctx.answerCallbackQuery();
         }
     } else if (data?.startsWith("pay_")) {
         // fallback — but we used url button already
         const pid = Number(data.split("_")[1]);
-        const payment = await paymentRepo.findOneBy({ id: pid });
+        const payment = payments.find(p => p.id === pid);
         if (!payment) {
-            await ctx.answerCallbackQuery({ text: "To‘lov topilmadi." });
+            await ctx.answerCallbackQuery({ text: "To'lov topilmadi." });
             return;
         }
         const { link } = generateClickLink(payment.amount, {});
@@ -172,7 +177,7 @@ app.post("/webhook/click", async (req, res) => {
     }
 
     // find payment record
-    const payment = await paymentRepo.findOneBy({ txId: tx });
+    const payment = payments.find(p => p.txId === tx);
     if (!payment) {
         // maybe it's a different field; respond 200 to avoid retries
         console.warn("Payment not found for tx", tx);
@@ -185,7 +190,6 @@ app.post("/webhook/click", async (req, res) => {
     if (status === "success" || status === "paid" || payload.is_paid === "true" || payload.payment_status === "COMPLETED") {
         payment.status = "paid";
         payment.clickPaymentId = String(payload.click_id || payload.payment_id || "");
-        await paymentRepo.save(payment);
 
         // notify user on Telegram (if we have userId)
         try {
@@ -199,7 +203,6 @@ app.post("/webhook/click", async (req, res) => {
     } else {
         // mark failed or pending
         payment.status = "failed";
-        await paymentRepo.save(payment);
         res.sendStatus(200);
         return;
     }
