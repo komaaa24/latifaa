@@ -1,0 +1,359 @@
+import { Context, InlineKeyboard } from "grammy";
+import { Repository } from "typeorm";
+import { Anecdote } from "../entities/Anecdote.js";
+import { User } from "../entities/User.js";
+import { Payment, PaymentStatus } from "../entities/Payment.js";
+import { AppDataSource } from "../database/data-source.js";
+import { UserService } from "../services/user.service.js";
+import { fetchAnecdotesFromAPI, formatAnecdote } from "../services/anecdote.service.js";
+import { generateClickPaymentLink, generateTransactionParam } from "../services/click.service.js";
+
+const userService = new UserService();
+
+// In-memory session storage
+interface UserSession {
+    anecdotes: Anecdote[];
+    currentIndex: number;
+    section: string | null;
+}
+
+const sessions = new Map<number, UserSession>();
+
+/**
+ * /start komandasi
+ */
+export async function handleStart(ctx: Context) {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    // Foydalanuvchini yaratish/yangilash
+    await userService.findOrCreate(userId, {
+        username: ctx.from?.username,
+        firstName: ctx.from?.first_name,
+        lastName: ctx.from?.last_name
+    });
+
+    const keyboard = new InlineKeyboard()
+        .text("📚 Anekdotlarni ko'rish", "show_sections");
+
+    await ctx.reply(
+        `🎭 <b>Anekdotlar botiga xush kelibsiz!</b>\n\n` +
+        `📖 Minglab qiziqarli anekdotlar sizni kutmoqda.\n\n` +
+        `💡 <b>Qanday ishlaydi?</b>\n` +
+        `• Turli bo'limlardan 5 ta anekdotni bepul ko'ring\n` +
+        `• Davomini ko'rish uchun bir martalik to'lov qiling\n` +
+        `• Cheksiz anekdotlardan bahramand bo'ling!\n\n` +
+        `Boshlash uchun quyidagi tugmani bosing 👇`,
+        {
+            reply_markup: keyboard,
+            parse_mode: "HTML"
+        }
+    );
+}
+
+/**
+ * Bo'limlarni ko'rsatish
+ */
+export async function handleShowSections(ctx: Context) {
+    const anecdoteRepo = AppDataSource.getRepository(Anecdote);
+
+    // Bo'limlarni olish
+    const sections = await anecdoteRepo
+        .createQueryBuilder("anecdote")
+        .select("DISTINCT anecdote.section", "section")
+        .getRawMany();
+
+    if (sections.length === 0) {
+        // Agar DB bo'sh bo'lsa, API dan yuklaymiz
+        await syncAnecdotesFromAPI();
+        return handleShowSections(ctx);
+    }
+
+    const keyboard = new InlineKeyboard();
+
+    // Har bir bo'lim uchun tugma
+    sections.forEach((item, index) => {
+        const section = item.section || "general";
+        const label = getSectionLabel(section);
+        keyboard.text(label, `section:${section}`);
+        if ((index + 1) % 2 === 0) keyboard.row();
+    });
+
+    keyboard.row().text("🎲 Tasodifiy", "section:random");
+    keyboard.row().text("⬅️ Orqaga", "back_to_start");
+
+    await ctx.editMessageText(
+        `📂 <b>Bo'limni tanlang:</b>\n\n` +
+        `Qiziqarli anekdotlar sizni kutmoqda!`,
+        {
+            reply_markup: keyboard,
+            parse_mode: "HTML"
+        }
+    );
+}
+
+/**
+ * Bo'lim tanlanganda anekdotlarni ko'rsatish
+ */
+export async function handleSectionSelect(ctx: Context, section: string) {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const anecdoteRepo = AppDataSource.getRepository(Anecdote);
+    const hasPaid = await userService.hasPaid(userId);
+
+    let query = anecdoteRepo.createQueryBuilder("anecdote");
+
+    if (section !== "random") {
+        query = query.where("anecdote.section = :section", { section });
+    }
+
+    // Tasodifiy 5 ta olish
+    const anecdotes = await query
+        .orderBy("RANDOM()")
+        .limit(hasPaid ? 20 : 5)
+        .getMany();
+
+    if (anecdotes.length === 0) {
+        await ctx.answerCallbackQuery({
+            text: "Bu bo'limda anekdotlar topilmadi 😔",
+            show_alert: true
+        });
+        return;
+    }
+
+    // Session yaratish
+    sessions.set(userId, {
+        anecdotes,
+        currentIndex: 0,
+        section
+    });
+
+    await showAnecdote(ctx, userId, 0);
+}
+
+/**
+ * Anekdotni ko'rsatish
+ */
+async function showAnecdote(ctx: Context, userId: number, index: number) {
+    const session = sessions.get(userId);
+    if (!session) return;
+
+    const anecdote = session.anecdotes[index];
+    const total = session.anecdotes.length;
+    const hasPaid = await userService.hasPaid(userId);
+
+    // Ko'rilgan anekdotlar sonini oshirish
+    await userService.incrementViewedAnecdotes(userId);
+
+    // Increment views
+    const anecdoteRepo = AppDataSource.getRepository(Anecdote);
+    anecdote.views += 1;
+    await anecdoteRepo.save(anecdote);
+
+    const keyboard = new InlineKeyboard();
+
+    if (index < total - 1) {
+        keyboard.text("➡️ Keyingi", `next:${index + 1}`);
+    }
+
+    if (index > 0) {
+        keyboard.text("⬅️ Oldingi", `next:${index - 1}`);
+    }
+
+    keyboard.row();
+
+    // Agar to'lov qilmagan bo'lsa va oxirgi anekdot ko'rsatilayotgan bo'lsa
+    if (!hasPaid && index === total - 1) {
+        keyboard.text("💳 To'lov qilish", "payment");
+        keyboard.row();
+    }
+
+    keyboard.text("📂 Bo'limlarga qaytish", "show_sections");
+
+    const text =
+        `📖 <b>Anekdot ${index + 1}/${total}</b>\n\n` +
+        `${anecdote.content}\n\n` +
+        `<i>👁 ${anecdote.views} marta ko'rilgan</i>`;
+
+    if (ctx.callbackQuery) {
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: "HTML"
+        });
+        await ctx.answerCallbackQuery();
+    } else {
+        await ctx.reply(text, {
+            reply_markup: keyboard,
+            parse_mode: "HTML"
+        });
+    }
+}
+
+/**
+ * Keyingi/oldingi anekdot
+ */
+export async function handleNext(ctx: Context, index: number) {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    await showAnecdote(ctx, userId, index);
+}
+
+/**
+ * To'lov oynasini ko'rsatish
+ */
+export async function handlePayment(ctx: Context) {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const user = await userService.findOrCreate(userId);
+
+    if (user.hasPaid) {
+        await ctx.answerCallbackQuery({
+            text: "Siz allaqachon to'lov qilgansiz! ✅",
+            show_alert: true
+        });
+        return;
+    }
+
+    // To'lov parametrlari
+    const amount = Number(process.env.CLICK_DEFAULT_AMOUNT) || 5000;
+    const transactionParam = generateTransactionParam();
+
+    // Payment record yaratish
+    const paymentRepo = AppDataSource.getRepository(Payment);
+    const payment = paymentRepo.create({
+        transactionParam,
+        userId: user.id,
+        amount,
+        status: PaymentStatus.PENDING,
+        metadata: {
+            telegramId: userId,
+            username: ctx.from?.username
+        }
+    });
+    await paymentRepo.save(payment);
+
+    // Click to'lov linkini yaratish
+    const paymentLink = generateClickPaymentLink({
+        serviceId: process.env.CLICK_SERVICE_ID!,
+        merchantId: process.env.CLICK_MERCHANT_ID!,
+        amount,
+        transactionParam,
+        returnUrl: process.env.CLICK_RETURN_URL || `https://t.me/${ctx.me.username}`,
+        merchantUserId: userId.toString()
+    });
+
+    const keyboard = new InlineKeyboard()
+        .url("💳 To'lash", paymentLink.url)
+        .row()
+        .text("✅ To'lovni tekshirish", `check_payment:${payment.id}`)
+        .row()
+        .text("❌ Bekor qilish", "cancel_payment");
+
+    await ctx.editMessageText(
+        `💰 <b>To'lov ma'lumotlari</b>\n\n` +
+        `💵 Summa: <b>${amount.toLocaleString()} so'm</b>\n` +
+        `🔐 Tranzaksiya: <code>${transactionParam}</code>\n\n` +
+        `📱 To'lash uchun pastdagi tugmani bosing.\n` +
+        `To'lovdan keyin "To'lovni tekshirish" tugmasini bosing.`,
+        {
+            reply_markup: keyboard,
+            parse_mode: "HTML"
+        }
+    );
+}
+
+/**
+ * To'lovni tekshirish
+ */
+export async function handleCheckPayment(ctx: Context, paymentId: number) {
+    const paymentRepo = AppDataSource.getRepository(Payment);
+    const payment = await paymentRepo.findOne({
+        where: { id: paymentId },
+        relations: ["user"]
+    });
+
+    if (!payment) {
+        await ctx.answerCallbackQuery({
+            text: "To'lov topilmadi ❌",
+            show_alert: true
+        });
+        return;
+    }
+
+    if (payment.status === PaymentStatus.PAID) {
+        await ctx.answerCallbackQuery({
+            text: "To'lovingiz tasdiqlandi! ✅",
+            show_alert: true
+        });
+
+        await ctx.editMessageText(
+            `✅ <b>To'lov muvaffaqiyatli!</b>\n\n` +
+            `Endi siz cheksiz anekdotlardan bahramand bo'lishingiz mumkin! 🎉\n\n` +
+            `Davom etish uchun /start bosing.`,
+            { parse_mode: "HTML" }
+        );
+    } else if (payment.status === PaymentStatus.PENDING) {
+        await ctx.answerCallbackQuery({
+            text: "To'lov hali tasdiqlanmadi. Iltimos biroz kuting ⏳",
+            show_alert: true
+        });
+    } else {
+        await ctx.answerCallbackQuery({
+            text: "To'lov muvaffaqiyatsiz tugadi ❌",
+            show_alert: true
+        });
+    }
+}
+
+/**
+ * API dan anekdotlarni sinxronlash
+ */
+async function syncAnecdotesFromAPI() {
+    const anecdoteRepo = AppDataSource.getRepository(Anecdote);
+
+    try {
+        for (let page = 1; page <= 5; page++) {
+            const items = await fetchAnecdotesFromAPI(page);
+
+            for (const item of items) {
+                const formatted = formatAnecdote(item);
+
+                const existing = await anecdoteRepo.findOne({
+                    where: { externalId: formatted.externalId }
+                });
+
+                if (!existing) {
+                    const anecdote = anecdoteRepo.create(formatted);
+                    await anecdoteRepo.save(anecdote);
+                }
+            }
+        }
+
+        console.log("✅ Anecdotes synced successfully");
+    } catch (error) {
+        console.error("❌ Error syncing anecdotes:", error);
+    }
+}
+
+/**
+ * Bo'lim nomini olish
+ */
+function getSectionLabel(section: string): string {
+    const labels: Record<string, string> = {
+        "general": "🎭 Umumiy",
+        "politics": "🏛 Siyosat",
+        "family": "👨‍👩‍👧‍👦 Oila",
+        "work": "💼 Ish",
+        "school": "🎓 Maktab",
+        "animals": "🐾 Hayvonlar",
+        "technology": "💻 Texnologiya"
+    };
+
+    return labels[section] || `📌 ${section}`;
+}
+
+// Export sync function
+export { syncAnecdotesFromAPI };
