@@ -103,10 +103,12 @@ export async function handleSectionSelect(ctx: Context, section: string) {
         query = query.where("anecdote.section = :section", { section });
     }
 
-    // Tasodifiy 5 ta olish
+    // To'lov qilgan bo'lsa hamma latifalar, yo'q bo'lsa 5 ta
+    const limit = hasPaid ? 1000 : 5; // 1000 - maksimal ruxsat berilgan latifalar soni
+    
     const anecdotes = await query
         .orderBy("RANDOM()")
-        .limit(hasPaid ? 20 : 5)
+        .limit(limit)
         .getMany();
 
     if (anecdotes.length === 0) {
