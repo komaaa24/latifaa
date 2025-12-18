@@ -5,8 +5,12 @@ import { Payment } from "../entities/Payment.js";
 import { User } from "../entities/User.js";
 
 export const AppDataSource = new DataSource({
-    type: "mongodb",
-    url: process.env.MONGODB_URI || "mongodb://localhost:27017/munajjim",
+    type: "postgres",
+    host: process.env.DB_HOST || "192.168.0.89",
+    port: Number(process.env.DB_PORT) || 5432,
+    username: process.env.DB_USER || "postgres",
+    password: process.env.DB_PASS || "123456",
+    database: process.env.DB_NAME || "anecdotes_db",
     synchronize: true, // Auto-sync schema (dev only)
     logging: process.env.NODE_ENV === "development",
     entities: [Anecdote, Payment, User],

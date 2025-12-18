@@ -1,24 +1,21 @@
-import { Entity, ObjectIdColumn, Column, CreateDateColumn, Index, ObjectId } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from "typeorm";
 
 @Entity("anecdotes")
 @Index(["section"])
 export class Anecdote {
-    @ObjectIdColumn()
-    _id!: ObjectId;
+    @PrimaryGeneratedColumn()
+    id!: number;
 
-    @Column()
-    id!: string;
-
-    @Column({ unique: true })
+    @Column({ type: "varchar", unique: true })
     externalId!: string;
 
-    @Column({ default: "general" })
+    @Column({ type: "varchar", default: "general" })
     section!: string;
 
-    @Column()
+    @Column({ type: "text" })
     content!: string;
 
-    @Column({ default: 0 })
+    @Column({ type: "int", default: 0 })
     views!: number;
 
     @CreateDateColumn()

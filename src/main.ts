@@ -84,7 +84,7 @@ bot.on("callback_query:data", async (ctx) => {
         } else if (data === "payment") {
             await handlePayment(ctx);
         } else if (data.startsWith("check_payment:")) {
-            const paymentId = data.replace("check_payment:", "");
+            const paymentId = parseInt(data.replace("check_payment:", ""));
             await handleCheckPayment(ctx, paymentId);
         } else if (data === "cancel_payment") {
             await ctx.editMessageText(

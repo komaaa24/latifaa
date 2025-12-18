@@ -97,24 +97,17 @@ export async function handleSectionSelect(ctx: Context, section: string) {
     const anecdoteRepo = AppDataSource.getRepository(Anecdote);
     const hasPaid = await userService.hasPaid(userId);
 
-    const limit = hasPaid ? 20 : 5;
+    let query = anecdoteRepo.createQueryBuilder("anecdote");
 
-    // MongoDB uchun oddiy find() va shuffle
-    let allAnecdotes: Anecdote[];
-
-    if (section === "random") {
-        // Barcha latifalardan
-        allAnecdotes = await anecdoteRepo.find();
-    } else {
-        // Bo'lim bo'yicha
-        allAnecdotes = await anecdoteRepo.find({
-            where: { section: section }
-        });
+    if (section !== "random") {
+        query = query.where("anecdote.section = :section", { section });
     }
 
-    // JavaScript da shuffle qilish
-    const shuffled = allAnecdotes.sort(() => Math.random() - 0.5);
-    const anecdotes = shuffled.slice(0, limit);
+    // Tasodifiy 5 ta olish
+    const anecdotes = await query
+        .orderBy("RANDOM()")
+        .limit(hasPaid ? 20 : 5)
+        .getMany();
 
     if (anecdotes.length === 0) {
         await ctx.answerCallbackQuery({
@@ -266,7 +259,7 @@ export async function handlePayment(ctx: Context) {
 /**
  * To'lovni tekshirish
  */
-export async function handleCheckPayment(ctx: Context, paymentId: string) {
+export async function handleCheckPayment(ctx: Context, paymentId: number) {
     const paymentRepo = AppDataSource.getRepository(Payment);
     const payment = await paymentRepo.findOne({
         where: { id: paymentId },

@@ -1,30 +1,27 @@
-import { Entity, ObjectIdColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ObjectId } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from "typeorm";
 import { Payment } from "./Payment.js";
 
 @Entity("users")
 export class User {
-    @ObjectIdColumn()
-    _id!: ObjectId;
+    @PrimaryGeneratedColumn()
+    id!: number;
 
-    @Column()
-    id!: string;
-
-    @Column({ unique: true })
+    @Column({ type: "bigint", unique: true })
     telegramId!: number;
 
-    @Column({ nullable: true })
+    @Column({ type: "varchar", nullable: true })
     username?: string;
 
-    @Column({ nullable: true })
+    @Column({ type: "varchar", nullable: true })
     firstName?: string;
 
-    @Column({ nullable: true })
+    @Column({ type: "varchar", nullable: true })
     lastName?: string;
 
-    @Column({ default: false })
+    @Column({ type: "boolean", default: false })
     hasPaid!: boolean;
 
-    @Column({ default: 0 })
+    @Column({ type: "int", default: 0 })
     viewedAnecdotes!: number;
 
     @OneToMany(() => Payment, payment => payment.user)

@@ -1,4 +1,4 @@
-import { Entity, ObjectIdColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, ObjectId } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from "typeorm";
 import { User } from "./User.js";
 
 export enum PaymentStatus {
@@ -10,35 +10,36 @@ export enum PaymentStatus {
 
 @Entity("payments")
 export class Payment {
-    @ObjectIdColumn()
-    _id!: ObjectId;
+    @PrimaryGeneratedColumn()
+    id!: number;
 
-    @Column()
-    id!: string;
-
-    @Column({ unique: true })
+    @Column({ type: "varchar", unique: true })
     transactionParam!: string;
 
     @ManyToOne(() => User, user => user.payments)
     @JoinColumn({ name: "userId" })
     user!: User;
 
-    @Column()
-    userId!: string;
+    @Column({ type: "int" })
+    userId!: number;
 
-    @Column()
+    @Column({ type: "decimal", precision: 10, scale: 2 })
     amount!: number;
 
-    @Column({ default: PaymentStatus.PENDING })
+    @Column({
+        type: "enum",
+        enum: PaymentStatus,
+        default: PaymentStatus.PENDING
+    })
     status!: PaymentStatus;
 
-    @Column({ nullable: true })
+    @Column({ type: "varchar", nullable: true })
     clickTransId?: string;
 
-    @Column({ nullable: true })
+    @Column({ type: "varchar", nullable: true })
     merchantTransId?: string;
 
-    @Column({ nullable: true })
+    @Column({ type: "jsonb", nullable: true })
     metadata?: Record<string, any>;
 
     @CreateDateColumn()

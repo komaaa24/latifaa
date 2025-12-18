@@ -146,7 +146,7 @@ export async function handleClickPrepare(req: Request, res: Response, bot: Bot) 
     }
 
     // Merchant prepare ID sifatida payment.id ishlatamiz
-    const merchantPrepareIdStr = payment.id;
+    const merchantPrepareIdNum = payment.id;
 
     // Response signature yaratish
     console.log("🔐 Generating response signature...");
@@ -157,7 +157,7 @@ export async function handleClickPrepare(req: Request, res: Response, bot: Bot) 
         service_id,
         secretKey,
         merchant_trans_id,
-        merchantPrepareIdStr,
+        merchantPrepareIdNum.toString(),
         amount,
         action,
         sign_time
@@ -170,7 +170,7 @@ export async function handleClickPrepare(req: Request, res: Response, bot: Bot) 
     const response = {
         click_trans_id,
         merchant_trans_id,
-        merchant_prepare_id: merchantPrepareIdStr,
+        merchant_prepare_id: merchantPrepareIdNum,
         error: 0,
         error_note: "Success",
         sign_time,
@@ -293,7 +293,7 @@ export async function handleClickComplete(req: Request, res: Response, bot: Bot)
     const payment = await paymentRepo.findOne({
         where: {
             transactionParam: merchant_trans_id,
-            id: merchant_prepare_id
+            id: parseInt(merchant_prepare_id)
         },
         relations: ["user"]
     });
