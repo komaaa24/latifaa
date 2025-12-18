@@ -38,33 +38,29 @@ export function getClickErrorMessage(errorCode: number): string {
 /**
  * Click to'lov linkini generatsiya qilish
  * Format: https://my.click.uz/services/pay?service_id=...&merchant_id=...
+ * 
+ * IMPORTANT: URLSearchParams() ishlatmaslik kerak!
+ * Chunki u parametrlarni encode qiladi va Click buni yoqtirmaydi
  */
 export function generateClickLink(
   amount: number,
-  transactionParam?: string
+  transactionParam?: string,
+  userId?: string
 ): { link: string; tx: string } {
   const tx = transactionParam || uuidv4().replace(/-/g, "");
 
   const serviceId = process.env.CLICK_SERVICE_ID;
   const merchantId = process.env.CLICK_MERCHANT_ID;
-  const returnUrl = process.env.CLICK_RETURN_URL;
+  const returnUrl = process.env.CLICK_RETURN_URL || "https://t.me/latifalar1_bot";
 
   if (!serviceId || !merchantId) {
     console.error("❌ ERROR: CLICK_SERVICE_ID or CLICK_MERCHANT_ID not found in .env");
     throw new Error("Click configuration incomplete");
   }
 
-  // Click to'lov linki - faqat zarur parametrlar
-  // additional_param parametrlari -2041 xatoligini keltirib chiqaradi
-  const params = new URLSearchParams({
-    service_id: serviceId,
-    merchant_id: merchantId,
-    amount: String(amount),
-    transaction_param: tx,
-    return_url: returnUrl || "https://t.me/latifalar1_bot"
-  });
-
-  const link = `https://my.click.uz/services/pay?${params.toString()}`;
+  // OCTO proyektidagi format: to'g'ridan-to'g'ri string concatenation
+  // URLSearchParams() ishlatmaslik kerak - Click uni encode qilishini yoqtirmaydi!
+  const link = `https://my.click.uz/services/pay?service_id=${serviceId}&merchant_id=${merchantId}&amount=${amount}&transaction_param=${tx}&return_url=${returnUrl}`;
 
   return { link, tx };
 }
