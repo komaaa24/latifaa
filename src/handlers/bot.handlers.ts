@@ -316,7 +316,8 @@ async function syncAnecdotesFromAPI() {
     const anecdoteRepo = AppDataSource.getRepository(Anecdote);
 
     try {
-        for (let page = 1; page <= 5; page++) {
+        // API da 12 ta sahifa bor (har birida ~15 ta latifa)
+        for (let page = 1; page <= 12; page++) {
             const items = await fetchAnecdotesFromAPI(page);
 
             for (const item of items) {
