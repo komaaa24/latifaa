@@ -5,7 +5,8 @@ import { Payment, PaymentStatus } from "../entities/Payment.js";
 import { User } from "../entities/User.js";
 import { UserService } from "../services/user.service.js";
 
-const SUPER_ADMIN_ID = 7789445876;
+// Admin ID'lar ro'yxati
+const ADMIN_IDS = [7789445876, 1083408];
 const analyticsService = new AnalyticsService();
 const userService = new UserService();
 
@@ -13,7 +14,7 @@ const userService = new UserService();
  * Admin tekshirish
  */
 function isSuperAdmin(userId: number | undefined): boolean {
-    return userId === SUPER_ADMIN_ID;
+    return userId !== undefined && ADMIN_IDS.includes(userId);
 }
 
 /**
@@ -27,20 +28,71 @@ export async function handleAdminPanel(ctx: Context) {
         return;
     }
 
+    // Statistikani olish
+    const userRepo = AppDataSource.getRepository(User);
+    const paymentRepo = AppDataSource.getRepository(Payment);
+
+    // DEBUG: Eng oxirgi 5 ta userni ko'ramiz
+    const recentUsers = await userRepo
+        .createQueryBuilder('user')
+        .orderBy('user.createdAt', 'DESC')
+        .limit(5)
+        .getMany();
+
+    console.log('🔍 DEBUG: Eng oxirgi 5 ta user:');
+    recentUsers.forEach(u => {
+        console.log(`  - ID: ${u.telegramId}, Created: ${u.createdAt}`);
+    });
+    console.log(`🔍 DEBUG: Server vaqti: ${new Date()}`);
+    console.log(`🔍 DEBUG: UTC vaqti: ${new Date().toISOString()}`);
+
+
+    // Nechta odam start bosgan (umumiy foydalanuvchilar)
+    const totalUsers = await userRepo.count();
+
+    // Nechta odam to'lov oyna bosgan (pending yoki paid to'lovlar)
+    const totalPaymentAttempts = await paymentRepo.count();
+
+    // 7 kunlik statistika - har kuni nechta yangi user va payment
+    let weeklyStats = '\n📅 <b>7 kunlik statistika:</b>\n\n';
+
+    // Timezone offset ni olamiz (Uzbekistan UTC+5)
+    const tzOffset = 5 * 60; // 5 soat * 60 daqiqa = 300 minut
+
+    for (let i = 6; i >= 0; i--) {
+        // O'zbekiston vaqtida kun boshini hisoblaymiz
+        const now = new Date();
+        const localDate = new Date(now.getTime() + tzOffset * 60 * 1000);
+        localDate.setUTCDate(localDate.getUTCDate() - i);
+        localDate.setUTCHours(0, 0, 0, 0);
+
+        const startDate = new Date(localDate.getTime() - tzOffset * 60 * 1000);
+        const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+
+        // Shu kuni ro'yxatdan o'tganlar (UTC formatda query)
+        const usersCount = await userRepo
+            .createQueryBuilder('user')
+            .where('user.createdAt >= :start', { start: startDate.toISOString() })
+            .andWhere('user.createdAt < :end', { end: endDate.toISOString() })
+            .getCount();
+
+        // Shu kuni to'lov bosganlar (UTC formatda query)
+        const paymentsCount = await paymentRepo
+            .createQueryBuilder('payment')
+            .where('payment.createdAt >= :start', { start: startDate.toISOString() })
+            .andWhere('payment.createdAt < :end', { end: endDate.toISOString() })
+            .getCount();
+
+        // Display formatda ko'rsatish
+        const displayDate = new Date(localDate);
+        const dayName = displayDate.toLocaleDateString('uz-UZ', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
+        weeklyStats += `${dayName}:\n`;
+        weeklyStats += `  └ Start bosganlar: ${usersCount} ta\n`;
+        weeklyStats += `  └ To'lov oynasini ochganlar: ${paymentsCount} ta\n\n`;
+    }
+
     const keyboard = new InlineKeyboard()
-        .text("👥 Foydalanuvchilar", "admin:users")
-        .text("💰 To'lovlar", "admin:payments")
-        .row()
-        .text("⏳ Kutilayotgan to'lovlar", "admin:pending")
-        .row()
-        .text("📚 She'rlar", "admin:poems")
-        .text("📊 Funnel", "admin:funnel")
-        .row()
-        .text("📈 7 kunlik trend", "admin:trend")
-        .text("🔥 Real-time", "admin:realtime")
-        .row()
-        .text("👑 Top foydalanuvchilar", "admin:topusers")
-        .row()
         .text("🔄 Yangilash", "admin:refresh");
 
     const message =
@@ -48,7 +100,11 @@ export async function handleAdminPanel(ctx: Context) {
         `👋 Xush kelibsiz, admin!\n\n` +
         `📊 Botning to'liq statistikasi va analytics bu yerda.\n` +
         `Kerakli bo'limni tanlang:\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `👥 <b>Jami start bosganlar:</b> ${totalUsers} ta\n` +
+        `💰 <b>Jami to'lov oyna bosganlar:</b> ${totalPaymentAttempts} ta\n` +
+        weeklyStats +
+        `\n━━━━━━━━━━━━━━━━━━━━\n` +
         `<i>Oxirgi yangilanish: ${new Date().toLocaleString("uz-UZ")}</i>`;
 
     if (ctx.callbackQuery) {
@@ -449,7 +505,7 @@ export async function handleApproveBytelegramId(ctx: Context, telegramId: number
         pendingPayment.status = PaymentStatus.PAID;
         pendingPayment.metadata = {
             ...pendingPayment.metadata,
-            manuallyApprovedBy: SUPER_ADMIN_ID,
+            manuallyApprovedBy: userId,
             manuallyApprovedAt: new Date().toISOString()
         };
         await paymentRepo.save(pendingPayment);

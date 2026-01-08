@@ -78,39 +78,8 @@ export async function handleStart(ctx: Context) {
         }
     }
 
-    // Welcome message - different for paid and unpaid users
-    const keyboard = new InlineKeyboard()
-        .text("❤️ She'rlarni o'qish", "show_poems");
-
-    if (hasPaid) {
-        // Paid users - creative unlimited access message
-        await ctx.reply(
-            `💖 <b>Xush kelibsiz aziz foydalanuvchi!</b>\n\n` +
-            `🎉 Sizda cheksiz she'rlar kolleksiyasiga to'liq kirish huquqi mavjud!\n\n` +
-            `📚 Minglab go'zal sevgi she'rlari sizni kutmoqda. Har bir she'r - yurakdan yurakka yo'l topgan so'zlar.\n\n` +
-            `✨ <i>Muhabbat - bu dunyo tillarida eng chiroyli she'rdir...</i>\n\n` +
-            `She'rlardan bahramand bo'lish uchun quyidagi tugmani bosing 👇`,
-            {
-                reply_markup: keyboard,
-                parse_mode: "HTML"
-            }
-        );
-    } else {
-        // Unpaid users - free trial message
-        await ctx.reply(
-            `💝 <b>Sevgi she'rlari botiga xush kelibsiz!</b>\n\n` +
-            `📖 Go'zal sevgi she'rlari sizni kutmoqda.\n\n` +
-            `💡 <b>Qanday ishlaydi?</b>\n` +
-            `• 5 ta she'rni bepul o'qing\n` +
-            `• Davomini o'qish uchun bir martalik to'lov qiling (${getFixedPaymentAmount()} so'm)\n` +
-            `• Cheksiz she'rlardan bahramand bo'ling!\n\n` +
-            `Boshlash uchun quyidagi tugmani bosing 👇`,
-            {
-                reply_markup: keyboard,
-                parse_mode: "HTML"
-            }
-        );
-    }
+    // To'g'ridan-to'g'ri she'rlarni ko'rsatish (menyu xabarsiz)
+    await handleShowPoems(ctx);
 }
 
 /**
@@ -192,14 +161,10 @@ async function showPoem(ctx: Context, userId: number, index: number) {
         keyboard.text("Keyingi", `next:${index + 1}`);
     }
 
-    if (index > 0) {
-        keyboard.text("Oldingi", `next:${index - 1}`);
-    }
-
     // Agar to'lov qilmagan bo'lsa va oxirgi she'r ko'rsatilayotgan bo'lsa
     if (!hasPaid && index === total - 1) {
         keyboard.row();
-        keyboard.text("💳 To'lov qilish", "payment");
+        keyboard.text("✨ Davom etish uchun", "payment");
     }
 
     // Chiroyli kreativ format bilan she'rni ko'rsatish
@@ -216,7 +181,6 @@ async function showPoem(ctx: Context, userId: number, index: number) {
     });
 
     text += `\n╰─────── ✦ ───────╯\n`;
-    text += `  📄 She'r ${index + 1}/${total}\n`;
 
     // Matnni yuborish
     if (ctx.callbackQuery) {
@@ -333,13 +297,18 @@ export async function handlePayment(ctx: Context) {
         .text("✅ To'lovni tekshirish", `check_payment:${payment.id}`);
 
     await ctx.editMessageText(
-        `💰 <b>To'lov ma'lumotlari</b>\n\n` +
-        `💵 Summa: <b>${amount.toLocaleString()} so'm</b> (qat'iy narx)\n\n` +
-        `📱 <b>To'lash:</b>\n` +
+        `💎 <b>Premium kirish – bir martalik imkoniyat</b>\n\n` +
+        `💰 To'lov: atigi <b>${amount.toLocaleString()} so'm</b>\n` +
+        `📚 Bir marta to'laysiz — cheksiz foydalanasiz!\n\n` +
+        `✨ Sizni yuzlab nafis va yurakka yetib boradigan sevgi she'rlari kutmoqda.\n` +
+        `💖 Har kuni yangi tuyg'ular, yangi satrlar.\n` +
+        `🔓 To'lovdan so'ng bot umrbod sizniki — hech qanday oylik to'lov, hech qanday cheklov yo'q.\n\n` +
+        `📤 O'qing, seving, ulashing — istagan paytingiz, istagan odam bilan.\n\n` +
+        `👉 ${amount.toLocaleString()} so'm — bu bir piyola choy narxi, ammo his-tuyg'ular cheksiz.\n\n` +
+        `📱 <b>To'lash tartibi:</b>\n` +
         `1️⃣ "To'lash" tugmasini bosing\n` +
         `2️⃣ To'lovni amalga oshiring\n` +
-        `3️⃣ "To'lovni tekshirish" tugmasini bosing\n\n` +
-        `✅ To'lov tasdiqlanishi bilanoq cheksiz she'rlardan bahramand bo'lasiz!`,
+        `3️⃣ "To'lovni tekshirish" ni bosing`,
         {
             reply_markup: keyboard,
             parse_mode: "HTML"

@@ -60,9 +60,9 @@ bot.command("admin", handleAdminPanel);
 // To'lovni qo'lda tasdiqlash
 bot.command("approve", async (ctx) => {
     const userId = ctx.from?.id;
-    const SUPER_ADMIN_ID = 7789445876;
+    const ADMIN_IDS = [7789445876, 1083408];
 
-    if (userId !== SUPER_ADMIN_ID) {
+    if (!userId || !ADMIN_IDS.includes(userId)) {
         return ctx.reply("⛔️ Bu buyruq faqat super admin uchun!");
     }
 
@@ -87,9 +87,9 @@ bot.command("approve", async (ctx) => {
 // Obunani bekor qilish (Super Admin)
 bot.command("revoke", async (ctx) => {
     const userId = ctx.from?.id;
-    const SUPER_ADMIN_ID = 7789445876;
+    const ADMIN_IDS = [7789445876, 1083408];
 
-    if (userId !== SUPER_ADMIN_ID) {
+    if (!userId || !ADMIN_IDS.includes(userId)) {
         return ctx.reply("⛔️ Bu buyruq faqat super admin uchun!");
     }
 
@@ -283,22 +283,26 @@ async function main() {
                 { command: "start", description: "🚀 Botni qayta boshlash" }
             ]);
 
-            // Admin uchun maxsus komandalar
-            const SUPER_ADMIN_ID = 7789445876;
-            await bot.api.setMyCommands(
-                [
-                    { command: "start", description: "🚀 Botni qayta boshlash" },
-                    { command: "admin", description: "👑 Admin panel" },
-                    { command: "approve", description: "✅ To'lovni tasdiqlash" },
-                    { command: "revoke", description: "🚫 Obunani bekor qilish" }
-                ],
-                {
-                    scope: {
-                        type: "chat",
-                        chat_id: SUPER_ADMIN_ID
+            // Admin uchun maxsus komandalar (har bir admin uchun alohida)
+            const ADMIN_IDS = [7789445876, 1083408];
+            const adminCommands = [
+                { command: "start", description: "🚀 Botni qayta boshlash" },
+                { command: "admin", description: "👑 Admin panel" },
+                { command: "approve", description: "✅ To'lovni tasdiqlash" },
+                { command: "revoke", description: "🚫 Obunani bekor qilish" }
+            ];
+
+            for (const adminId of ADMIN_IDS) {
+                await bot.api.setMyCommands(
+                    adminCommands,
+                    {
+                        scope: {
+                            type: "chat",
+                            chat_id: adminId
+                        }
                     }
-                }
-            );
+                );
+            }
 
             console.log("✅ Menu button configured (user + admin commands)");
         } catch (error) {
