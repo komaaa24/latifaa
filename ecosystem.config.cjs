@@ -3,7 +3,6 @@ module.exports = {
         {
             name: 'sevgi-sherlar-bot',
             script: 'dist/main.js',
-            cwd: '/home/kamoliddin/Desktop/anikdod',
             instances: 1,
             autorestart: true,
             watch: false,
@@ -15,7 +14,6 @@ module.exports = {
         {
             name: 'sevgi-payment-gateway',
             script: 'dist/gateway.js',
-            cwd: '/home/kamoliddin/Desktop/anikdod',
             instances: 1,
             autorestart: true,
             watch: false,
