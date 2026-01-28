@@ -67,12 +67,12 @@ export async function handleStart(ctx: Context) {
         }
     }
 
-    // To'g'ridan-to'g'ri latifalarni ko'rsatish
+    // To'g'ridan-to'g'ri sirlarni ko'rsatish
     await handleShowJokes(ctx);
 }
 
 /**
- * Latifalarni ko'rsatish
+ * Sirlarni ko'rsatish
  */
 export async function handleShowJokes(ctx: Context) {
     const userId = ctx.from?.id;
@@ -89,7 +89,7 @@ export async function handleShowJokes(ctx: Context) {
         await syncJokesFromAPI();
     }
 
-    // Tasodifiy latifalarni olish
+    // Tasodifiy sirlarni olish
     let jokes;
     if (hasPaid) {
         jokes = await jokeRepo
@@ -105,7 +105,7 @@ export async function handleShowJokes(ctx: Context) {
     }
 
     if (jokes.length === 0) {
-        await ctx.reply("Latifalar topilmadi 😔");
+        await ctx.reply("Sirrlar topilmadi 😔");
         return;
     }
 
@@ -119,7 +119,7 @@ export async function handleShowJokes(ctx: Context) {
 }
 
 /**
- * Latifani ko'rsatish
+ * Sirrni ko'rsatish
  */
 async function showJoke(ctx: Context, userId: number, index: number) {
     const session = sessions.get(userId);
@@ -129,7 +129,7 @@ async function showJoke(ctx: Context, userId: number, index: number) {
     const total = session.jokes.length;
     const hasPaid = await userService.hasPaid(userId);
 
-    // Ko'rilgan latifalar sonini oshirish
+    // Ko'rilgan sirlar sonini oshirish
     await userService.incrementViewedJokes(userId);
 
     // Increment views
@@ -140,21 +140,21 @@ async function showJoke(ctx: Context, userId: number, index: number) {
     const keyboard = new InlineKeyboard();
 
     if (index < total - 1) {
-        keyboard.text("😂 Keyingisi", `next:${index + 1}`);
+        keyboard.text("💡 Keyingi sir", `next:${index + 1}`);
     }
 
-    // Agar to'lov qilmagan bo'lsa va oxirgi latifa
+    // Agar to'lov qilmagan bo'lsa va oxirgi sir
     if (!hasPaid && index === total - 1) {
         keyboard.row();
-        keyboard.text("🎉 Cheksiz kulgi", "payment");
+        keyboard.text("🚀 Premium kirish", "payment");
     }
 
     // Professional format
-    let text = `╭━━━━━━ 😂 ━━━━━━╮\n`;
-    text += `     🎭 <b>LATIFA #${index + 1}</b> 🎭\n`;
-    text += `╰━━━━━━ 😂 ━━━━━━╯\n\n`;
+    let text = `╭━━━━━━ 💼 ━━━━━━╮\n`;
+    text += `     💡 <b>SIRR #${index + 1}</b> 💡\n`;
+    text += `╰━━━━━━ 💼 ━━━━━━╯\n\n`;
 
-    // Latifa matni
+    // Sirr matni
     const lines = joke.content.split('\n');
     lines.forEach(line => {
         if (line.trim()) {
@@ -166,14 +166,14 @@ async function showJoke(ctx: Context, userId: number, index: number) {
 
     // Kategoriya
     if (joke.category) {
-        text += `\n📂 <i>${joke.category}</i>\n`;
+        text += `\n🏷️ <i>${joke.category}</i>\n`;
     }
 
     // Statistika
     if (joke.views > 10) {
         text += `\n👁 ${joke.views.toLocaleString()} | `;
-        text += `😄 ${joke.likes} | `;
-        text += `😐 ${joke.dislikes}`;
+        text += `👍 ${joke.likes} | `;
+        text += `👎 ${joke.dislikes}`;
     }
 
     // Yuborish
@@ -192,7 +192,7 @@ async function showJoke(ctx: Context, userId: number, index: number) {
 }
 
 /**
- * Keyingi latifa
+ * Keyingi sirr
  */
 export async function handleNext(ctx: Context, index: number) {
     const userId = ctx.from?.id;
@@ -211,7 +211,7 @@ export async function handleNext(ctx: Context, index: number) {
 
     if (!hasPaid && index >= 5) {
         await ctx.answerCallbackQuery({
-            text: "❌ Obunangiz bekor qilindi! Faqat 5 ta bepul latifa.",
+            text: "❌ Obunangiz bekor qilindi! Faqat 5 ta bepul sir.",
             show_alert: true
         });
 
@@ -220,8 +220,8 @@ export async function handleNext(ctx: Context, index: number) {
 
         await ctx.editMessageText(
             `⚠️ <b>Obunangiz bekor qilindi!</b>\n\n` +
-            `Siz faqat 5 ta bepul latifani ko'rishingiz mumkin.\n\n` +
-            `Cheksiz latifalardan bahramand bo'lish uchun premium oling! 😊`,
+            `Siz faqat 5 ta bepul sirni ko'rishingiz mumkin.\n\n` +
+            `Cheksiz biznes sirlaridan bahramand bo'lish uchun premium oling! 💼`,
             {
                 reply_markup: keyboard,
                 parse_mode: "HTML"
@@ -266,7 +266,7 @@ export async function handlePayment(ctx: Context) {
     });
     await paymentRepo.save(payment);
 
-    const botUsername = ctx.me?.username || "latifalar_bot";
+    const botUsername = ctx.me?.username || "pul_topish_sirlari_bot";
     const returnUrl = `https://t.me/${botUsername}`;
 
     const paymentLink = generatePaymentLink({
@@ -282,22 +282,23 @@ export async function handlePayment(ctx: Context) {
         .text("✅ To'lovni tekshirish", `check_payment:${payment.id}`);
 
     await ctx.editMessageText(
-        `🎉 <b>CHEKSIZ KULGI – BIR MARTALIK TAKLIF!</b>\n\n` +
+        `🚀 <b>PUL TOPISH SIRLARI – PREMIUM KIRISH!</b>\n\n` +
         `💰 Narx: atigi <b>${amount.toLocaleString()} so'm</b>\n` +
-        `😂 Bir marta to'lang — umrbodiygina kuling!\n\n` +
-        `✨ <b>Nimalar kutmoqda:</b>\n` +
-        `   🎭 Ming-minglab zarafat va hazillar\n` +
-        `   😄 Har kuni yangi latifalar\n` +
-        `   🚀 Cheksiz kirish – hech qanday cheklov yo'q\n` +
-        `   📱 Istalgan vaqt, istalgan joyda\n\n` +
-        `💡 Bu narx – bir chashka choyning narxi!\n` +
-        `Lekin kulgi va zavq – cheksiz! 🎊\n\n` +
-        `👉 <b>To'lash juda oson:</b>\n` +
+        `💼 Bir marta to'lang — doimiy biznes bilimlari!\n\n` +
+        `✨ <b>Sizni kutayotgan imkoniyatlar:</b>\n` +
+        `   💡 Daromad oshirish bo'yicha amaliy sirlar\n` +
+        `   📈 Marketing va savdo strategiyalari\n` +
+        `   🧠 Moliyaviy fikrlashni kuchaytiruvchi maslahatlar\n` +
+        `   🔥 Har kuni yangilanadigan biznes g'oyalar\n` +
+        `   ♾️ Cheksiz kirish – hech qanday cheklov yo'q\n\n` +
+        `💡 Bu narx – bir chashka qahva narxidan ham arzon,\n` +
+        `lekin foydasi – katta! ☕💰\n\n` +
+        `👉 <b>Boshlash juda oson:</b>\n` +
         `   1️⃣ "To'lash" tugmasini bosing\n` +
         `   2️⃣ Xavfsiz to'lovni amalga oshiring\n` +
         `   3️⃣ "To'lovni tekshirish" ni bosing\n` +
-        `   4️⃣ KULING! 😂\n\n` +
-        `⚡️ Taklif cheklangan – imkoniyatni qo'ldan boy bermang!`,
+        `   4️⃣ Sirlarni o'qishni boshlang!\n\n` +
+        `⚡️ Bugun boshlang, ertaga natija ko'ring!`,
         {
             reply_markup: keyboard,
             parse_mode: "HTML"
@@ -334,8 +335,8 @@ export async function handleCheckPayment(ctx: Context, paymentId: number) {
 
         await ctx.editMessageText(
             `✅ <b>To'lov muvaffaqiyatli!</b>\n\n` +
-            `🎉 Tabriklaymiz! Endi siz cheksiz latifalardan bahramand bo'lasiz!\n\n` +
-            `Kulgi davom etsin – /start bosing! 😂`,
+            `🎉 Tabriklaymiz! Endi siz cheksiz biznes sirlaridan bahramand bo'lasiz!\n\n` +
+            `Ilhom va natija davom etsin – /start bosing! 💼`,
             { parse_mode: "HTML" }
         );
         return;
@@ -379,7 +380,7 @@ export async function handleCheckPayment(ctx: Context, paymentId: number) {
                     `✅ <b>To'lovingiz tasdiqlandi!</b>\n\n` +
                     `💰 Summa: ${payment.amount} so'm\n` +
                     `🎉 Endi siz premium a'zosisiz!\n\n` +
-                    `Cheksiz latifalar – /start bosing! 😂`,
+                    `Cheksiz sirlar – /start bosing! 💼`,
                     { parse_mode: "HTML" }
                 );
             } else {
@@ -406,7 +407,7 @@ export async function handleCheckPayment(ctx: Context, paymentId: number) {
 }
 
 /**
- * API dan latifalarni sinxronlash
+ * API dan sirlarni sinxronlash
  */
 export async function syncJokesFromAPI() {
     const jokeRepo = AppDataSource.getRepository(Joke);
@@ -438,7 +439,7 @@ export async function syncJokesFromAPI() {
             }
         }
 
-        console.log("✅ Jokes synced successfully");
+        console.log("✅ Content synced successfully");
     } catch (error) {
         console.error("❌ Error syncing jokes:", error);
     }

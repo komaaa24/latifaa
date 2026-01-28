@@ -40,7 +40,7 @@ async function main() {
     });
 
     // Universal payment link generator (Click) for all bots
-    // Example: /payme_url.php?user_id=7789445876&amount=5000&bot_key=latifalar_bot
+    // Example: /payme_url.php?user_id=7789445876&amount=5000&bot_key=pul_topish_sirlari_bot
     app.get("/payme_url.php", async (req, res) => {
         try {
             const apiKey = (process.env.PAYMENT_API_KEY || "").trim();
@@ -92,7 +92,7 @@ async function main() {
             // Return URL - to'lovdan keyin botga qaytish
             const returnUrl = botKey
                 ? `https://t.me/${botKey.replace('_bot', '')}_bot`
-                : `https://t.me/latifalar_bot`;
+                : `https://t.me/pul_topish_sirlari_bot`;
 
             const paymentLink = generatePaymentLink({
                 amount,
@@ -287,4 +287,3 @@ main().catch((err) => {
     console.error("❌ Fatal:", err);
     process.exit(1);
 });
-

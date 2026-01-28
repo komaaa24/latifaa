@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
         {
-            name: 'latifalar-bot',
+            name: 'pul-topish-sirlari-bot',
             script: 'dist/main.js',
             node_args: ['-r', 'dotenv/config'],
             instances: 1,

@@ -1,16 +1,16 @@
-# 😂 Latifalar Telegram Bot
+# 💼 Pul Topish Sirlari Telegram Bot
 
-Professional Telegram bot with Click payment integration for sharing jokes.
+Professional Telegram bot with Click payment integration for delivering business tips and money-making secrets.
 
 ## ✨ Features
 
-- � Minglab kulgu baxsh etuvchi latifalar
-- 🎲 Tasodifiy latifa tanlash
+- 💡 Biznes va daromad bo'yicha foydali sirlar
+- 🎲 Tasodifiy sir tanlash
 - 💳 Click.uz to'lov integratsiyasi
 - 👤 Foydalanuvchilar boshqaruvi
 - 📊 Ko'rishlar statistikasi
 - 🔄 API dan avtomatik sinxronlash
-- 🎯 5 ta bepul latifa
+- 🎯 5 ta bepul sir
 - ✅ Bir martalik to'lov - cheksiz kirish
 
 ## 🛠 Tech Stack
@@ -24,7 +24,7 @@ Professional Telegram bot with Click payment integration for sharing jokes.
 
 ## 📋 Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - PostgreSQL 12+
 - Telegram Bot Token
 - Click.uz Merchant Account
@@ -34,7 +34,7 @@ Professional Telegram bot with Click payment integration for sharing jokes.
 1. **Clone repository:**
    ```bash
    git clone <your-repo-url>
-   cd latifalar
+   cd pul_topish
    ```
 
 2. **Install dependencies:**
@@ -50,26 +50,31 @@ Professional Telegram bot with Click payment integration for sharing jokes.
 4. **Configure `.env` file:**
    ```env
    BOT_TOKEN=your_telegram_bot_token
-   
+
    DB_HOST=localhost
    DB_PORT=5432
    DB_USER=postgres
    DB_PASS=your_password
-   DB_NAME=latifalar
-   
+   DB_NAME=pul_topish
+
    CLICK_SERVICE_ID=87085
    CLICK_MERCHANT_ID=7269
    CLICK_SECRET_KEY=your_click_secret_key
    CLICK_DEFAULT_AMOUNT=1111
    CLICK_RETURN_URL=https://t.me/your_bot_username
-   
+
    PORT=3000
    ADMIN_IDS=your_telegram_id
+
+   # ProgramSoft API (Pul topish sirlari)
+   PROGRAMSOFT_API_URL=http://www.programsoft.uz/api
+   PROGRAMSOFT_SERVICE_ID=56
+   PROGRAMSOFT_PAGES=12
    ```
 
 5. **Create database:**
    ```bash
-   createdb latifalar
+   createdb pul_topish
    ```
 
 ## 🎮 Usage
@@ -85,7 +90,7 @@ npm run build
 npm run start:prod
 ```
 
-### Sync jokes manually:
+### Sync secrets manually:
 Use `/sync` command in bot (admin only)
 
 ## 🔧 Project Structure
@@ -96,11 +101,11 @@ src/
 │   └── data-source.ts       # TypeORM configuration
 ├── entities/
 │   ├── User.ts              # User entity
-│   ├── Joke.ts              # Joke entity
+│   ├── Joke.ts              # Secrets content (stored in jokes table)
 │   └── Payment.ts           # Payment entity
 ├── services/
 │   ├── user.service.ts      # User business logic
-│   ├── anecdote.service.ts  # Anecdote API integration
+│   ├── joke.service.ts      # ProgramSoft API integration (pul topish sirlari)
 │   └── click.service.ts     # Click payment service
 ├── handlers/
 │   ├── bot.handlers.ts      # Bot command handlers
@@ -110,12 +115,12 @@ src/
 
 ## 📱 Bot Commands
 
-- `/start` - Start bot and show menu
-- `/sync` - Sync anecdotes from API (admin only)
+- `/start` - Start bot and show content
+- `/sync` - Sync secrets from API (admin only)
 
 ## 💰 Payment Flow
 
-1. User views 5 free anecdotes
+1. User views 5 free secrets
 2. Bot offers payment option
 3. Click payment link generated
 4. User completes payment
@@ -126,7 +131,7 @@ src/
 
 ### Webhook URL:
 ```
-https://yourdomain.com/webhook/click
+https://yourdomain.com/webhook/pay
 ```
 
 ### Methods Implemented:
@@ -144,11 +149,11 @@ https://yourdomain.com/webhook/click
 - telegramId (unique)
 - username, firstName, lastName
 - hasPaid (boolean)
-- viewedAnecdotes (counter)
+- viewedJokes (counter)
 
-### Anecdotes
+### Secrets (jokes table)
 - externalId (from API)
-- section (category)
+- category
 - content (text)
 - views (counter)
 
@@ -176,6 +181,9 @@ https://yourdomain.com/webhook/click
 | CLICK_RETURN_URL | Return URL after payment | ✅ |
 | PORT | Webhook server port | ❌ |
 | ADMIN_IDS | Admin Telegram IDs | ❌ |
+| PROGRAMSOFT_API_URL | ProgramSoft API base | ✅ |
+| PROGRAMSOFT_SERVICE_ID | ProgramSoft service ID | ✅ |
+| PROGRAMSOFT_PAGES | API pages to sync | ❌ |
 
 ## 🐛 Troubleshooting
 
@@ -185,7 +193,7 @@ https://yourdomain.com/webhook/click
 sudo systemctl status postgresql
 
 # Create database if not exists
-createdb anecdotes_db
+createdb pul_topish
 ```
 
 ### Bot not responding:

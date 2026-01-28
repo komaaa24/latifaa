@@ -14,12 +14,12 @@ interface ProgramSoftResponse {
 }
 
 /**
- * ProgramSoft API dan latifalarni olish
+ * ProgramSoft API dan pul topish sirlari olish
  */
 export async function fetchJokesFromAPI(page: number = 1): Promise<JokeItem[]> {
     try {
-        const apiBaseUrl = process.env.PROGRAMSOFT_API_URL || "https://www.programsoft.uz/api";
-        const serviceId = process.env.PROGRAMSOFT_SERVICE_ID || "1";
+        const apiBaseUrl = process.env.PROGRAMSOFT_API_URL || "http://www.programsoft.uz/api";
+        const serviceId = process.env.PROGRAMSOFT_SERVICE_ID || "56";
         const url = `${apiBaseUrl}/service/${serviceId}?page=${page}`;
         const response = await fetch(url);
 
@@ -45,7 +45,7 @@ export async function fetchJokesFromAPI(page: number = 1): Promise<JokeItem[]> {
 }
 
 /**
- * Latifani formatlash
+ * Sirrni formatlash
  */
 export function formatJoke(item: JokeItem): {
     externalId: string;
@@ -56,7 +56,7 @@ export function formatJoke(item: JokeItem): {
     dislikes: number;
 } {
     const externalId = String(item.id);
-    const content = item.text || "Latifa topilmadi";
+    const content = item.text || "Sirr topilmadi";
     const category = item.caption || undefined;
 
     return {

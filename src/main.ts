@@ -120,7 +120,7 @@ bot.command("sync", async (ctx) => {
         return ctx.reply("⛔️ Bu buyruqdan foydalanish uchun ruxsatingiz yo'q.");
     }
 
-    await ctx.reply("🔄 Latifalar sinxronlashtirilmoqda...");
+    await ctx.reply("🔄 Sirlar sinxronlashtirilmoqda...");
     await syncJokesFromAPI();
     await ctx.reply("✅ Sinxronlash muvaffaqiyatli tugadi!");
 });
@@ -207,7 +207,7 @@ app.post("/internal/send-payment-notification", async (req, res) => {
             `✅ <b>To'lovingiz tasdiqlandi!</b>\n\n` +
             `💰 Summa: ${amount || 1111} so'm\n` +
             `🎉 Endi botdan cheksiz foydalanishingiz mumkin!\n\n` +
-            `Latifalarni o'qishni boshlash uchun quyidagi tugmani bosing 👇`,
+            `Biznes sirlarini o'qishni boshlash uchun quyidagi tugmani bosing 👇`,
             {
                 parse_mode: "HTML",
                 reply_markup: keyboard
@@ -240,10 +240,10 @@ app.post("/webhook/pay", async (req, res) => {
  */
 async function main() {
     try {
-        console.log("🚀 Starting Latifalar Bot...");
+        console.log("🚀 Starting Pul Topish Sirlari Bot...");
 
-        // Initialize main database (latifalar)
-        console.log("📦 Connecting to main database (latifalar)...");
+        // Initialize main database
+        console.log("📦 Connecting to main database...");
         await AppDataSource.initialize();
         console.log("✅ Main database connected");
 
@@ -258,9 +258,9 @@ async function main() {
         }
 
         // Sync jokes on startup
-        console.log("🔄 Syncing jokes from API...");
+        console.log("🔄 Syncing business secrets from API...");
         await syncJokesFromAPI();
-        console.log("✅ Jokes synced");
+        console.log("✅ Content synced");
 
         // Start Express server
         app.listen(PORT, () => {

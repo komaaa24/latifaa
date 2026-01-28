@@ -4,6 +4,7 @@ import { Payment, PaymentStatus } from "../entities/Payment.js";
 import { AppDataSource } from "../database/data-source.js";
 import { UserService } from "../services/user.service.js";
 import { Bot } from "grammy";
+import { verifyClickPaymentByMTI } from "../services/click-verify.service.js";
 
 const userService = new UserService();
 
@@ -21,6 +22,15 @@ export async function handlePaymentWebhook(req: Request, res: Response, bot: Bot
         user_id,
         fullBody: req.body
     });
+
+    const webhookSecret = (process.env.PAYMENT_WEBHOOK_SECRET || "").trim();
+    if (webhookSecret) {
+        const provided = String(req.headers["x-webhook-secret"] || "").trim();
+        if (provided !== webhookSecret) {
+            console.warn("❌ [WEBHOOK] Invalid webhook secret");
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+    }
 
     if (!tx) {
         return res.status(400).json({
@@ -52,10 +62,88 @@ export async function handlePaymentWebhook(req: Request, res: Response, bot: Bot
         });
     }
 
+    // Amount tekshirish (phishing/amount o'zgartirishdan himoya)
+    const webhookAmount = Number(amount);
+    if (!Number.isFinite(webhookAmount) || webhookAmount <= 0) {
+        console.warn("⚠️ [WEBHOOK] Invalid amount in webhook:", amount);
+        return res.status(400).json({ success: false, message: "Invalid amount" });
+    }
+
+    if (webhookAmount !== payment.amount) {
+        console.warn("❌ [WEBHOOK] Amount mismatch:", {
+            expected: payment.amount,
+            received: webhookAmount,
+            tx
+        });
+
+        payment.status = PaymentStatus.FAILED;
+        payment.metadata = {
+            ...payment.metadata,
+            failedAt: new Date().toISOString(),
+            failedReason: "amount_mismatch",
+            webhookAmount: webhookAmount
+        };
+        await paymentRepo.save(payment);
+
+        return res.status(400).json({
+            success: false,
+            message: "Amount mismatch"
+        });
+    }
+
     // Status tekshirish (success, paid, completed)
     const paymentSuccess = status === "success" || status === "paid" || status === "completed";
 
     if (paymentSuccess) {
+        // Click Merchant API orqali qayta tekshirish (agar konfiguratsiya bor bo'lsa)
+        try {
+            console.log("🔍 [WEBHOOK] Click verify request:", {
+                tx: payment.transactionParam,
+                createdAt: payment.createdAt
+            });
+            const clickResult = await verifyClickPaymentByMTI(payment.transactionParam, payment.createdAt);
+            console.log("✅ [WEBHOOK] Click verify response:", clickResult);
+            if (clickResult.errorNote !== "missing_click_config") {
+                if (!clickResult.ok) {
+                    console.warn("❌ [WEBHOOK] Click verify failed:", clickResult);
+                    payment.status = PaymentStatus.FAILED;
+                    payment.metadata = {
+                        ...payment.metadata,
+                        failedAt: new Date().toISOString(),
+                        failedReason: "click_verify_failed",
+                        clickVerify: clickResult
+                    };
+                    await paymentRepo.save(payment);
+                    return res.status(400).json({ success: false, message: "Click verify failed" });
+                }
+
+                if (clickResult.paymentStatus !== undefined && clickResult.paymentStatus !== 1) {
+                    console.warn("❌ [WEBHOOK] Click payment_status not paid:", clickResult.paymentStatus);
+                    payment.status = PaymentStatus.FAILED;
+                    payment.metadata = {
+                        ...payment.metadata,
+                        failedAt: new Date().toISOString(),
+                        failedReason: "click_not_paid",
+                        clickVerify: clickResult
+                    };
+                    await paymentRepo.save(payment);
+                    return res.status(400).json({ success: false, message: "Click status not paid" });
+                }
+            } else {
+                console.warn("⚠️ [WEBHOOK] Click verify skipped: missing config");
+            }
+        } catch (error) {
+            console.error("❌ [WEBHOOK] Click verify error:", error);
+            payment.status = PaymentStatus.FAILED;
+            payment.metadata = {
+                ...payment.metadata,
+                failedAt: new Date().toISOString(),
+                failedReason: "click_verify_error"
+            };
+            await paymentRepo.save(payment);
+            return res.status(500).json({ success: false, message: "Click verify error" });
+        }
+
         // To'lovni tasdiqlash
         payment.status = PaymentStatus.PAID;
         payment.metadata = {
@@ -80,7 +168,7 @@ export async function handlePaymentWebhook(req: Request, res: Response, bot: Bot
                     `✅ <b>To'lovingiz tasdiqlandi!</b>\n\n` +
                     `💰 Summa: ${payment.amount} so'm\n` +
                     `🎉 Endi botdan cheksiz foydalanishingiz mumkin!\n\n` +
-                    `Latifalarni o'qishni boshlash uchun /start tugmasini bosing.`,
+                    `Biznes sirlarini o'qishni boshlash uchun /start tugmasini bosing.`,
                     { parse_mode: "HTML" }
                 );
                 console.log(`📤 [WEBHOOK] Notification sent to user ${telegramId}`);

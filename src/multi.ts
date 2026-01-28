@@ -55,7 +55,7 @@ async function wireBot(bot: Bot) {
             return ctx.reply("⛔️ Bu buyruqdan foydalanish uchun ruxsatingiz yo'q.");
         }
 
-        await ctx.reply("🔄 Sinxronlashtirilmoqda...");
+        await ctx.reply("🔄 Sirlar sinxronlashtirilmoqda...");
         await syncJokesFromAPI();
         await ctx.reply("✅ Sinxronlash muvaffaqiyatli tugadi!");
     });
@@ -159,4 +159,3 @@ main().catch((err) => {
     console.error("❌ Fatal:", err);
     process.exit(1);
 });
-

@@ -79,7 +79,7 @@ export class AnalyticsService {
     }
 
     /**
-     * Latifalar statistikasi
+     * Sirlar statistikasi
      */
     async getJokeStats() {
         const jokeRepo = AppDataSource.getRepository(Joke);
@@ -92,13 +92,13 @@ export class AnalyticsService {
         const totalLikes = jokes.reduce((sum, j) => sum + j.likes, 0);
         const totalDislikes = jokes.reduce((sum, j) => sum + j.dislikes, 0);
 
-        // Eng mashhur latifa
+        // Eng ommabop sir
         const mostViewed = await jokeRepo.findOne({
             where: {},
             order: { views: "DESC" }
         });
 
-        // Eng yoqtirilgan latifa
+        // Eng yoqtirilgan sir
         const mostLiked = await jokeRepo.findOne({
             where: {},
             order: { likes: "DESC" }
@@ -133,7 +133,7 @@ export class AnalyticsService {
         // Qadam 1: /start bosganlar
         const totalUsers = await userRepo.count();
 
-        // Qadam 2: Latifalarni ko'rganlar (viewedJokes > 0)
+        // Qadam 2: Sirlarni ko'rganlar (viewedJokes > 0)
         const usersWhoViewed = await userRepo
             .createQueryBuilder("user")
             .where("user.viewedJokes > 0")
